@@ -1,6 +1,6 @@
 package com.yuong.eventbus.annotation.mode;
 
-public class EventBeans {
+public class EventBeans implements SubscriberInfo{
 
     //订阅者对象的class，如 MainActivity.class
     private final Class subscriberClass;
@@ -13,11 +13,13 @@ public class EventBeans {
         this.methods = methods;
     }
 
+    @Override
     public Class getSubscriberClass() {
         return subscriberClass;
     }
 
-    public synchronized SubscriberMethod[] getMethods() {
+    @Override
+    public SubscriberMethod[] getSubscriberMethods() {
         return methods;
     }
 }

@@ -1,4 +1,4 @@
-package com.yuong.eventbus.library;
+package com.yuong.eventbus;
 
 import org.junit.Test;
 

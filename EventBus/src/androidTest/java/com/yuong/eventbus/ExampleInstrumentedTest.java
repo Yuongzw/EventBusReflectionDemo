@@ -1,4 +1,4 @@
-package com.yuong.eventbus.library;
+package com.yuong.eventbus;
 
 import android.content.Context;
 
@@ -22,6 +22,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        assertEquals("com.yuong.eventbus.library.test", appContext.getPackageName());
+        assertEquals("com.yuong.eventbus.test", appContext.getPackageName());
     }
 }

@@ -155,9 +155,9 @@ public class SubscriberProcessor extends AbstractProcessor {
 
         //生成类文件
         try {
-            if(subscriberIndexType != null) {
+            if (subscriberIndexType != null) {
                 createFile(subscriberIndexType);
-            }else {
+            } else {
                 messager.printMessage(Diagnostic.Kind.NOTE, "subscriberIndexType 为空！");
             }
         } catch (Exception e) {
@@ -203,6 +203,7 @@ public class SubscriberProcessor extends AbstractProcessor {
             CodeBlock contentCode = null;
             String format;
             for (int i = 0; i < entry.getValue().size(); i++) {
+                messager.printMessage(Diagnostic.Kind.NOTE, entry.getValue().size() + " " + i);
                 //获取每个方法上的  Subscribe 注解值
                 Subscribe subscribe = entry.getValue().get(i).getAnnotation(Subscribe.class);
                 //获取订阅事件方法所有参数
@@ -213,9 +214,9 @@ public class SubscriberProcessor extends AbstractProcessor {
                 TypeElement parameterElement = (TypeElement) typeUtils.asElement(parameters.get(0).asType());
                 //如果是最后一个添加，则无需逗号结尾
                 if (i == entry.getValue().size() - 1) {
-                    format = "new $T($T.class, $S. $T.class, $T, $L, $L, $L)";
+                    format = "new $T($T.class, $S, $T.class, $T.$L, $L, $L)";
                 } else {
-                    format = "new $T($T.class, $S. $T.class, $T, $L, $L, $L),\n";
+                    format = "new $T($T.class, $S, $T.class, $T.$L, $L, $L),\n";
                 }
                 contentCode = contentBlock.add(format,
                         SubscriberMethod.class,
@@ -226,88 +227,88 @@ public class SubscriberProcessor extends AbstractProcessor {
                         subscribe.threadMode(),
                         subscribe.priority(),
                         subscribe.sticky()).build();
-
-                if (contentCode != null) {
-                    //putIndex(new EventBeans(MainActivity.class, new SubscriberMethod[]{})
-                    codeBlock.beginControlFlow("putIndex(new $T($T.class, new $T[]",
-                            EventBeans.class,
-                            ClassName.get(entry.getKey()),
-                            SubscriberMethod.class)
-                            .add(contentCode)
-                            .endControlFlow("))");
-
-
-                } else {
-                    messager.printMessage(Diagnostic.Kind.ERROR, "注解处理器双层循环发生错误！");
-                }
             }
-            //全局属性：Map<Class<?>, SubscriberInfo>
-            TypeName fieldType = ParameterizedTypeName.get(
-                    ClassName.get(Map.class),
-                    ClassName.get(Class.class),
-                    ClassName.get(SubscriberInfo.class));
-
-            //putIndex方法参数：putIndex(SubscriberInfo info)
-            ParameterSpec putIndexParameter = ParameterSpec.builder(
-                    ClassName.get(SubscriberInfo.class),
-                    Constants.PUTINDEX_PARAMETER_NAME).build();
-
-            //putIndex方法配置：private static void putIndex (SubscriberInfo info) {
-
-            MethodSpec.Builder putIndexBuilder = MethodSpec
-                    .methodBuilder(Constants.PUTINDEX_METHOD_NAME)//方法名
-                    .addModifiers(Modifier.PRIVATE, Modifier.STATIC)//private static 修饰
-                    .addParameter(putIndexParameter);//添加方法参数
-
-            //putIndex方法内容：SUBSCRIBER_INDEX.put(info.getSubscriberClass(), info)
-            putIndexBuilder.addStatement("$N.put($N.getSubscriberClass(), $N)",
-                    Constants.FIELD_NAME,
-                    Constants.PUTINDEX_PARAMETER_NAME,
-                    Constants.PUTINDEX_PARAMETER_NAME).build();
-
-            //getSubscriberInfo 方法参数： Class subscriberClass
-            ParameterSpec getSubscriberInfoParameter = ParameterSpec.builder(
-                    ClassName.get(Class.class),
-                    Constants.GETSUBSCRIBEINFO_PARAMETER_NAME
-            ).build();
-
-            //getSubscriberInfo方法配置：public SubscriberInfo getSubscriberInfo(Class<?> subscriberClass) {
-            MethodSpec.Builder getSubscriberInfoBuilder = MethodSpec
-                    .methodBuilder(Constants.GETSUBSCRIBERINFO_METHOD_NAME)//方法名
-                    .addAnnotation(Override.class)//重写方法注解
-                    .addModifiers(Modifier.PUBLIC)//public修饰符
-                    .addParameter(getSubscriberInfoParameter)//方法参数
-                    .returns(SubscriberInfo.class);//返回值
+            if (contentCode != null) {
+                //putIndex(new EventBeans(MainActivity.class, new SubscriberMethod[]{})
+                messager.printMessage(Diagnostic.Kind.NOTE, "Activity:" + entry.getKey());
+                codeBlock.beginControlFlow("putIndex(new $T($T.class, new $T[]",
+                        EventBeans.class,
+                        ClassName.get(entry.getKey()),
+                        SubscriberMethod.class)
+                        .add(contentCode)
+                        .endControlFlow("))");
 
 
-            //getSubscriberInfo 方法内容：return SUBSCRIBER_INDEX.get(subscriberClass);
-            getSubscriberInfoBuilder.addStatement("return $N.get($N)",
-                    Constants.FIELD_NAME,
-                    Constants.GETSUBSCRIBEINFO_PARAMETER_NAME
-            );
-
-            TypeSpec typeSpec = TypeSpec.classBuilder(className)
-                    //实现 SubscriberInfoIndex接口
-                    .addSuperinterface(ClassName.get(subscriberIndexType))
-                    //该类的修饰符
-                    .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                    //添加静态块
-                    .addStaticBlock(codeBlock.build())
-                    //全局属性 private static final Map>Class<?>, SubscriberMethod> SUBSCRIBER_INDEX
-                    .addField(fieldType, Constants.FIELD_NAME, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
-                    //第一个方法：加入全局 map 集合
-                    .addMethod(putIndexBuilder.build())
-                    //第二个方法“通过订阅者对象（MainActivity）获取所有的订阅方法
-                    .addMethod(getSubscriberInfoBuilder.build())
-                    .build();
-            //生成类文件：EventBusIndex
-            JavaFile.builder(
-                    //包名
-                    packageName,
-                    typeSpec)
-                    .build().writeTo(filer);
+            } else {
+                messager.printMessage(Diagnostic.Kind.ERROR, "注解处理器双层循环发生错误！");
+            }
         }
+        //全局属性：Map<Class<?>, SubscriberInfo>
+        TypeName fieldType = ParameterizedTypeName.get(
+                ClassName.get(Map.class),
+                ClassName.get(Class.class),
+                ClassName.get(SubscriberInfo.class));
 
+        //putIndex方法参数：putIndex(SubscriberInfo info)
+        ParameterSpec putIndexParameter = ParameterSpec.builder(
+                ClassName.get(SubscriberInfo.class),
+                Constants.PUTINDEX_PARAMETER_NAME).build();
+
+        //putIndex方法配置：private static void putIndex (SubscriberInfo info) {
+
+        MethodSpec.Builder putIndexBuilder = MethodSpec
+                .methodBuilder(Constants.PUTINDEX_METHOD_NAME)//方法名
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)//private static 修饰
+                .addParameter(putIndexParameter);//添加方法参数
+
+        //putIndex方法内容：SUBSCRIBER_INDEX.put(info.getSubscriberClass(), info)
+        putIndexBuilder.addStatement("$N.put($N.getSubscriberClass(), $N)",
+                Constants.FIELD_NAME,
+                Constants.PUTINDEX_PARAMETER_NAME,
+                Constants.PUTINDEX_PARAMETER_NAME).build();
+
+        //getSubscriberInfo 方法参数： Class subscriberClass
+        ParameterSpec getSubscriberInfoParameter = ParameterSpec.builder(
+                ClassName.get(Class.class),
+                Constants.GETSUBSCRIBEINFO_PARAMETER_NAME
+        ).build();
+
+        //getSubscriberInfo方法配置：public SubscriberInfo getSubscriberInfo(Class<?> subscriberClass) {
+        MethodSpec.Builder getSubscriberInfoBuilder = MethodSpec
+                .methodBuilder(Constants.GETSUBSCRIBERINFO_METHOD_NAME)//方法名
+                .addAnnotation(Override.class)//重写方法注解
+                .addModifiers(Modifier.PUBLIC)//public修饰符
+                .addParameter(getSubscriberInfoParameter)//方法参数
+                .returns(SubscriberInfo.class);//返回值
+
+
+        //getSubscriberInfo 方法内容：return SUBSCRIBER_INDEX.get(subscriberClass);
+        getSubscriberInfoBuilder.addStatement("return $N.get($N)",
+                Constants.FIELD_NAME,
+                Constants.GETSUBSCRIBEINFO_PARAMETER_NAME
+        );
+
+        TypeSpec typeSpec = TypeSpec.classBuilder(className)
+                //实现 SubscriberInfoIndex接口
+                .addSuperinterface(ClassName.get(subscriberIndexType))
+                //该类的修饰符
+                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                //添加静态块
+                .addStaticBlock(codeBlock.build())
+                //全局属性 private static final Map>Class<?>, SubscriberMethod> SUBSCRIBER_INDEX
+                .addField(fieldType, Constants.FIELD_NAME, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+                //第一个方法：加入全局 map 集合
+                .addMethod(putIndexBuilder.build())
+                //第二个方法“通过订阅者对象（MainActivity）获取所有的订阅方法
+                .addMethod(getSubscriberInfoBuilder.build())
+                .build();
+        //生成类文件：EventBusIndex
+        JavaFile.builder(
+                //包名
+                packageName,
+                typeSpec)
+                .build().writeTo(filer);
     }
+
 
 }
